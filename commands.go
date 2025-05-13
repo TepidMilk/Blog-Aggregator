@@ -38,7 +38,7 @@ func (c *commands) register(name string, f func(*state, command) error) {
 
 func handlerLogin(s *state, cmd command) error {
 
-	if len(cmd.args) <= 1 {
+	if len(cmd.args) < 1 {
 		return fmt.Errorf("usage: %s <name>", cmd.name)
 	}
 
