@@ -5,7 +5,6 @@
 package database
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -13,5 +12,5 @@ type User struct {
 	ID        int32
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Name      sql.NullString
+	Name      string
 }
