@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/tepidmilk/gator/internal/config"
+	"github.com/tepidmilk/gator/internal/database"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -42,11 +48,39 @@ func handlerLogin(s *state, cmd command) error {
 		return fmt.Errorf("usage: %s <name>", cmd.name)
 	}
 
-	err := s.cfg.SetUser(cmd.args[1])
+	_, err := s.db.GetUser(context.Background(), cmd.args[0])
+	if err == sql.ErrNoRows {
+		return errors.New("unable to login. user does not exist")
+	} else if err != nil {
+		return err
+	}
+
+	err = s.cfg.SetUser(cmd.args[0])
 	if err != nil {
 		return fmt.Errorf("couldn't set current user: %W", err)
 	}
 
-	fmt.Printf("User has been set to %s\n", cmd.args[1])
+	fmt.Printf("User has been set to %s\n", cmd.args[0])
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	fmt.Println(cmd.args[0])
+	if len(cmd.args) < 1 {
+		return fmt.Errorf("usage: %s <name>", cmd.name)
+	}
+
+	user, err := s.db.GetUser(context.Background(), cmd.args[0])
+	if err == nil {
+		return errors.New("user already exists in database")
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+
+	s.db.CreateUser(context.Background(), database.CreateUserParams{ID: uuid.New(), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), Name: cmd.args[0]})
+	s.cfg.SetUser(cmd.args[0])
+
+	fmt.Println("User successfully registered in Database")
+	fmt.Println(user)
 	return nil
 }
