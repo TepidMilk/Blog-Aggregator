@@ -35,7 +35,7 @@ func (c *commands) run(s *state, cmd command) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (c *commands) register(name string, f func(*state, command) error) {
@@ -61,7 +61,7 @@ func handlerLogin(s *state, cmd command) error {
 	}
 
 	fmt.Printf("User has been set to %s\n", cmd.args[0])
-	return nil
+	return err
 }
 
 func handlerRegister(s *state, cmd command) error {
@@ -70,7 +70,7 @@ func handlerRegister(s *state, cmd command) error {
 		return fmt.Errorf("usage: %s <name>", cmd.name)
 	}
 
-	user, err := s.db.GetUser(context.Background(), cmd.args[0])
+	_, err := s.db.GetUser(context.Background(), cmd.args[0])
 	if err == nil {
 		return errors.New("user already exists in database")
 	} else if err != sql.ErrNoRows {
@@ -81,6 +81,10 @@ func handlerRegister(s *state, cmd command) error {
 	s.cfg.SetUser(cmd.args[0])
 
 	fmt.Println("User successfully registered in Database")
-	fmt.Println(user)
 	return nil
+}
+
+func handlerReset(s *state, cmd command) error {
+	err := s.db.Reset(context.Background())
+	return err
 }
