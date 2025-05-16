@@ -117,7 +117,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	if len(cmd.args) < 2 {
 		return fmt.Errorf("usage: %s <Feed Name> <URL>", cmd.name)
 	}
-	userID, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
 	if err != nil {
 		return fmt.Errorf("error getting user: %v", err)
 	}
@@ -129,13 +129,17 @@ func handlerAddFeed(s *state, cmd command) error {
 		UpdatedAt: time.Now().UTC(),
 		Name:      name,
 		Url:       URL,
-		UserID:    userID.ID,
+		UserID:    user.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating feed: %v", err)
 	}
+	fmt.Println("Feed Created:", feed.Name)
+	err = handlerFollow(s, command{args: []string{URL}})
+	if err != nil {
+		return err
+	}
 
-	fmt.Println(feed)
 	return err
 }
 
@@ -146,6 +150,46 @@ func handlerFeeds(s *state, cmd command) error {
 	}
 	for _, item := range feeds {
 		fmt.Printf(" - '%s' {%s} (user: %s)\n", item.Name, item.Url, item.Name_2)
+	}
+	return err
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.args) < 1 {
+		return fmt.Errorf("usage: %s <URL>", cmd.name)
+	}
+	URL := cmd.args[0]
+	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("error getting user: %v", err)
+	}
+	feedID, err := s.db.GetFeedByURL(context.Background(), URL)
+	if err != nil {
+		return errors.New("no feed exists at given URL: Try 'addfeed <name> <URL>")
+	}
+	feedFollow, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		UserID:    user.ID,
+		FeedID:    feedID,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating feed follow record: %v", err)
+	}
+
+	fmt.Printf("%s is now following '%s'\n", feedFollow.UserName, feedFollow.FeedName)
+
+	return err
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	feedsFollowing, err := s.db.GetFeedFollowsForUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("error getting followed feeds: %v", err)
+	}
+	for _, item := range feedsFollowing {
+		fmt.Println(item.FeedName)
 	}
 	return err
 }
