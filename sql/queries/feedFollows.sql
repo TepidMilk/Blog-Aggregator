@@ -22,3 +22,8 @@ SELECT users.name as user_name, feeds.name as feed_name, feed_follows.* FROM fee
 INNER JOIN users on users.id = feed_follows.user_id
 INNER JOIN feeds on feeds.id = feed_follows.feed_id
 WHERE users.name = $1;
+
+-- name: DeleteFeedFollows :exec
+DELETE FROM feed_follows
+WHERE user_id = $1
+AND feed_id = $2;
