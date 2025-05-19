@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/tepidmilk/gator/internal/config"
@@ -63,4 +65,34 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 
 		return handler(s, cmd, user)
 	}
+}
+
+func scrapeFeeds(s *state) error {
+	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("error getting user: %v", err)
+	}
+
+	next, err := s.db.GetNextFeedToFetch(context.Background(), user.ID)
+	if err != nil {
+		return fmt.Errorf("error getting next feed to fetch: %v", err)
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		LastFethcedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+		ID:            next.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("error marking feed fetched: %v", err)
+	}
+
+	RSSFeed, err := fetchFeed(context.Background(), next.Url)
+	if err != nil {
+		return fmt.Errorf("error fetching feed: %v", err)
+	}
+
+	for _, item := range RSSFeed.Channel.Item {
+		fmt.Println(item.Title)
+	}
+	return err
 }
