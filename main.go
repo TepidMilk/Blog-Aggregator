@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/araddon/dateparse"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/tepidmilk/gator/internal/config"
 	"github.com/tepidmilk/gator/internal/database"
@@ -92,7 +94,30 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range RSSFeed.Channel.Item {
-		fmt.Println(item.Title)
+		publishTime, err := dateparse.ParseAny(item.PubDate)
+		if err != nil {
+			return fmt.Errorf("error parsing item's time: %v", err)
+		}
+		err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Title:     item.Title,
+			Url:       item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  true,
+			},
+			PublishedAt: sql.NullTime{
+				Time:  publishTime,
+				Valid: true,
+			},
+			FeedID: next.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("error creating post: %v", err)
+		}
+
 	}
 	return err
 }
