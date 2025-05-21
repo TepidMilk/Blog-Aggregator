@@ -70,12 +70,7 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 }
 
 func scrapeFeeds(s *state) error {
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("error getting user: %v", err)
-	}
-
-	next, err := s.db.GetNextFeedToFetch(context.Background(), user.ID)
+	next, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
 		return fmt.Errorf("error getting next feed to fetch: %v", err)
 	}
