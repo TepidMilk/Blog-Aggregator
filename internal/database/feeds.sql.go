@@ -105,14 +105,12 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]GetFeedsRow, error) {
 }
 
 const getNextFeedToFetch = `-- name: GetNextFeedToFetch :one
-SELECT feeds.id, feeds.created_at, feeds.updated_at, feeds.name, feeds.url, feeds.user_id, feeds.last_fethced_at FROM feeds
-INNER JOIN feed_follows on feed_follows.feed_id = feeds.id
-WHERE feed_follows.user_id = $1
+SELECT id, created_at, updated_at, name, url, user_id, last_fethced_at FROM feeds
 ORDER BY last_fethced_at ASC NULLS FIRST
 `
 
-func (q *Queries) GetNextFeedToFetch(ctx context.Context, userID uuid.UUID) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getNextFeedToFetch, userID)
+func (q *Queries) GetNextFeedToFetch(ctx context.Context) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getNextFeedToFetch)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
