@@ -227,8 +227,8 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 	var limit int32 = 2
 	if len(cmd.args) < 1 {
 		posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
-			ID:    user.ID,
-			Limit: limit,
+			UserID: user.ID,
+			Limit:  limit,
 		})
 		if err != nil {
 			return fmt.Errorf("error getting posts for user: %v", err)
@@ -244,12 +244,16 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 			return fmt.Errorf("usage: %s <optional limit int32>", cmd.name)
 		}
 		posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
-			ID:    user.ID,
-			Limit: int32(newLimit),
+			UserID: user.ID,
+			Limit:  int32(newLimit),
 		})
+		fmt.Printf("Found %d posts for user %s\n", len(posts), user.Name)
 		for _, post := range posts {
-			fmt.Println(post.Title)
-			fmt.Println(post.Description)
+			fmt.Printf("%s from %s\n", post.PublishedAt.Time.Format("Mon Jan 2"), post.FeedName)
+			fmt.Printf("--- %s ---\n", post.Title)
+			fmt.Printf("    %v\n", post.Description.String)
+			fmt.Printf("Link: %s\n", post.Url)
+			fmt.Println("=======================================")
 		}
 		return err
 	}
