@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/araddon/dateparse"
@@ -42,6 +42,7 @@ func main() {
 	c.register("follow", middlewareLoggedIn(handlerFollow))
 	c.register("following", middlewareLoggedIn(handlerFollowing))
 	c.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	c.register("browse", middlewareLoggedIn(handlerBrowse))
 	args := os.Args
 	if len(args) < 2 {
 		log.Fatal("Usage: cli <command> [args...]")
@@ -69,29 +70,33 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 	}
 }
 
-func scrapeFeeds(s *state) error {
-	next, err := s.db.GetNextFeedToFetch(context.Background())
+func scrapeFeeds(s *state) {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
-		return fmt.Errorf("error getting next feed to fetch: %v", err)
+		log.Println("error getting next feed to fetch:", err)
+		return
 	}
 
 	err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
 		LastFethcedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
-		ID:            next.ID,
+		ID:            nextFeed.ID,
 	})
 	if err != nil {
-		return fmt.Errorf("error marking feed fetched: %v", err)
+		log.Println("error marking feed fetched:", err)
+		return
 	}
 
-	RSSFeed, err := fetchFeed(context.Background(), next.Url)
+	RSSFeed, err := fetchFeed(context.Background(), nextFeed.Url)
 	if err != nil {
-		return fmt.Errorf("error fetching feed: %v", err)
+		log.Println("error fetching feed:", err)
+		return
 	}
 
 	for _, item := range RSSFeed.Channel.Item {
 		publishTime, err := dateparse.ParseAny(item.PubDate)
 		if err != nil {
-			return fmt.Errorf("error parsing item's time: %v", err)
+			log.Println("error parsing item's time:", err)
+			return
 		}
 		err = s.db.CreatePost(context.Background(), database.CreatePostParams{
 			ID:        uuid.New(),
@@ -107,12 +112,15 @@ func scrapeFeeds(s *state) error {
 				Time:  publishTime,
 				Valid: true,
 			},
-			FeedID: next.ID,
+			FeedID: nextFeed.ID,
 		})
 		if err != nil {
-			return fmt.Errorf("error creating post: %v", err)
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
 		}
-
+		log.Printf("couldn't create post: %v", err)
+		continue
 	}
-	return err
+	log.Printf("Feed %s collectedm %v posts found", nextFeed.Name, len(RSSFeed.Channel.Item))
 }

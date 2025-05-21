@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -220,4 +221,36 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 
 	return err
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var limit int32 = 2
+	if len(cmd.args) < 1 {
+		posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+			ID:    user.ID,
+			Limit: limit,
+		})
+		if err != nil {
+			return fmt.Errorf("error getting posts for user: %v", err)
+		}
+		for _, post := range posts {
+			fmt.Println(post.Title)
+			fmt.Println(post.Description)
+		}
+		return err
+	} else {
+		newLimit, err := strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return fmt.Errorf("usage: %s <optional limit int32>", cmd.name)
+		}
+		posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+			ID:    user.ID,
+			Limit: int32(newLimit),
+		})
+		for _, post := range posts {
+			fmt.Println(post.Title)
+			fmt.Println(post.Description)
+		}
+		return err
+	}
 }
