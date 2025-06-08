@@ -20,7 +20,7 @@ Create a `.gatorconfig.json` file in your home directory with the following stru
 }
 ```
 
-Replace the key with your database connection string.
+Replace the value with your database connection string.
 
 ## Usage
 
